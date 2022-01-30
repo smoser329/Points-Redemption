@@ -7,7 +7,7 @@ This Project allows financiers to input and keep track of transactions in an SQL
 
 ## Adding Transactions, Redeeming Points, and Viewing your Balance
 - These actions can be completed by submitting HTTP Requests
-## Walk-Through
+## Walk-Through/Unit Tests
 I use Postman to send my requests. Guide on Postman below.
 - Open a terminal in the working directory of the repository and run start.py
 - Adding Transactions
