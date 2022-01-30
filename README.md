@@ -59,4 +59,4 @@ I use Postman to send my requests. Guide on Postman below.
   }
 ]
 ## Spend Points JSON
-{"points":100}
+{"points":5000}
