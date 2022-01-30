@@ -3,6 +3,7 @@
 
 
 This Project allows financiers to input and keep track of transactions in an SQL database. Users may then redeem the points they accumulate.
+Youtube Demo: https://www.youtube.com/watch?v=rqPVhT5lAb0
 
 
 ## Adding Transactions, Redeeming Points, and Viewing your Balance
