@@ -9,26 +9,25 @@ from flask import Flask, Response, json # more webserver things
 import datetime
 import requests
 
+conn = sqlite3.connect('points.db') # connects to database and stores it in a file
+c = conn.cursor()
+c.execute("""CREATE TABLE IF NOT EXISTS points_tracker (
+            payer text,
+            points integer,
+            timestamp text)""")
+conn.commit()
+conn.close()
+conn = sqlite3.connect('points.db') # connects to database and stores it in a file
+c = conn.cursor()
+c.execute("""CREATE TABLE IF NOT EXISTS transactions_all (
+            payer text,
+            points integer,
+            timestamp text)""")
+conn.commit()
+conn.close()
+
 app = flask.Flask(__name__)
 
-def create_table():
-    conn = sqlite3.connect('points.db') # connects to database and stores it in a file
-    c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS points_tracker (
-                payer text,
-                points integer,
-                timestamp text)""")
-    conn.commit()
-    conn.close()
-    conn = sqlite3.connect('points.db') # connects to database and stores it in a file
-    c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS transactions_all (
-                payer text,
-                points integer,
-                timestamp text)""")
-    conn.commit()
-    conn.close()
-    return 'table made'
 
 @app.route("/clear_db", methods=["PUT"])
 def clear_db():
@@ -135,7 +134,7 @@ def spend_points():
                 if points<points_spend:
                     time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") #iso 8601 time
                     points_spent.append({"payer":payer, "points":points})
-                    points_spent_time.append({"payer":payer, "points":points, "timestamp":time})
+                    points_spent_time.append({"payer":payer, "points":-points, "timestamp":time})
                     points_spend = points_spend-points
                     points_original.append(points)
                     timestamp_original.append(timestamp)
@@ -144,7 +143,7 @@ def spend_points():
                 else:
                     time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") #iso 8601 time
                     points_spent.append({"payer":payer, "points":points_spend})
-                    points_spent_time.append({"payer":payer,"points":points_spend,"timestamp":time})
+                    points_spent_time.append({"payer":payer,"points":-points_spend,"timestamp":time})
                     points_spend = 0
                     points_original.append(points)
                     timestamp_original.append(timestamp)
@@ -152,7 +151,7 @@ def spend_points():
         j=0
         for row in points_spent_time:
             payer = row["payer"]
-            points = -row["points"]
+            points = row["points"]
             timestamp_current = row["timestamp"]
             points_sum=points_original[j]+points
             c.execute("UPDATE points_tracker SET points =? WHERE timestamp=?",(points_sum,timestamp_original[j],))
@@ -185,4 +184,3 @@ def show_balance(): # provides the sum of each payer's points
   
 if __name__ == "__main__":
     app.run(debug=True)    
-    create_table()
