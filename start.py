@@ -12,17 +12,17 @@ import requests
 app = flask.Flask(__name__)
 
 def create_table():
-    conn = sqlite3.connect('transactions10.db') # connects to database and stores it in a file
+    conn = sqlite3.connect('points.db') # connects to database and stores it in a file
     c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS transactions10 (
+    c.execute("""CREATE TABLE IF NOT EXISTS points_tracker (
                 payer text,
                 points integer,
                 timestamp text)""")
     conn.commit()
     conn.close()
-    conn = sqlite3.connect('transactions10.db') # connects to database and stores it in a file
+    conn = sqlite3.connect('points.db') # connects to database and stores it in a file
     c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS transactions13 (
+    c.execute("""CREATE TABLE IF NOT EXISTS transactions_all (
                 payer text,
                 points integer,
                 timestamp text)""")
@@ -33,20 +33,30 @@ def create_table():
 @app.route("/clear_db", methods=["PUT"])
 def clear_db():
     #clears current database
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()
-    c.execute("DELETE FROM transactions10")
-    c.execute("DELETE FROM transactions13")
+    c.execute("DELETE FROM points_tracker")
+    c.execute("DELETE FROM transactions_all")
     conn.commit()
     conn.close()
     return "Database Cleared"
 
-@app.route("/show_db", methods=["GET"])
-def show_db():
+@app.route("/show_table_tracker", methods=["GET"])
+def show_table_tracker():
     #displays current database
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()
-    c.execute("SELECT * FROM transactions10")
+    c.execute("SELECT * FROM points_tracker")
+    db = c.fetchall()
+    conn.close()
+    return Response(json.dumps(db), mimetype='application/json')
+
+@app.route("/show_table_all", methods=["GET"])
+def show_table_all():
+    #displays current database
+    conn = sqlite3.connect('points.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM transactions_all")
     db = c.fetchall()
     conn.close()
     return Response(json.dumps(db), mimetype='application/json')
@@ -55,41 +65,41 @@ def show_db():
 def add_transaction(): 
     #loads db up with transactions
     #accepts .json's with just one or multiple transactions
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()
     json_data = flask.request.json
     for row in json_data:
         payer = row["payer"]
         points = row["points"]
         timestamp = row["timestamp"]
-        c.execute( "INSERT INTO transactions10 VALUES ('{}','{}','{}')".format(payer,points,timestamp))
-        c.execute( "INSERT INTO transactions13 VALUES ('{}','{}','{}')".format(payer,points,timestamp))
+        c.execute( "INSERT INTO points_tracker VALUES ('{}','{}','{}')".format(payer,points,timestamp))
+        c.execute( "INSERT INTO transactions_all VALUES ('{}','{}','{}')".format(payer,points,timestamp))
         conn.commit() # saves database
     ##clean database
     #This section takes negative points in transactions and subtracts them from positive point transactions
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()
-    c.execute("SELECT payer, points,timestamp FROM transactions10 WHERE points<0")
+    c.execute("SELECT payer, points,timestamp FROM points_tracker WHERE points<0")
     neg_payer = c.fetchall()
     for row in neg_payer:
         points_spend= -row[1]
         payer = row[0]
         timestamp = row[2]
-        c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(0,timestamp,))
+        c.execute("UPDATE points_tracker SET points =? WHERE timestamp=?",(0,timestamp,))
 
-    c.execute("SELECT payer, points, timestamp FROM transactions10 WHERE points>0 AND payer=? AND timestamp<? ORDER BY timestamp ASC",(payer,timestamp,))
+    c.execute("SELECT payer, points, timestamp FROM points_tracker WHERE points>0 AND payer=? AND timestamp<? ORDER BY timestamp ASC",(payer,timestamp,))
     try:
         payer,points,timestamp = c.fetchone()
         while points_spend>0:
             if points<points_spend:
                         points_spend = points_spend-points
                         return "hi"
-                        c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(0,timestamp,))
+                        c.execute("UPDATE points_tracker SET points =? WHERE timestamp=?",(0,timestamp,))
                         
                         conn.commit()
                         payer,points,timestamp = c.fetchone()
             else:
-                    c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(points-points_spend,timestamp,))
+                    c.execute("UPDATE points_tracker SET points =? WHERE timestamp=?",(points-points_spend,timestamp,))
                     points_spend = 0
                     conn.commit()
         conn.close()
@@ -104,17 +114,17 @@ def spend_points():
     # This function will only redeem points from a payer if the sum of the points from all transactions with that payer > 0
     json_spend = flask.request.json
     points_spend = json_spend["points"]
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()
     z = conn.cursor()
-    z.execute("SELECT SUM(points) FROM transactions10")
+    z.execute("SELECT SUM(points) FROM points_tracker")
     points_sum = z.fetchone()
     if points_sum[0]<points_spend: # We want no payer's points to go negative.
         can_redeem = 0
     else:
           can_redeem= 1 
     if can_redeem == 1:
-        c.execute("SELECT payer, points, timestamp FROM transactions10 WHERE points > 0 ORDER BY timestamp ASC")
+        c.execute("SELECT payer, points, timestamp FROM points_tracker WHERE points > 0 ORDER BY timestamp ASC")
         payer,points,timestamp = c.fetchone()
         points_original = []
         timestamp_original = []
@@ -145,9 +155,9 @@ def spend_points():
             points = -row["points"]
             timestamp_current = row["timestamp"]
             points_sum=points_original[j]+points
-            c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(points_sum,timestamp_original[j],))
+            c.execute("UPDATE points_tracker SET points =? WHERE timestamp=?",(points_sum,timestamp_original[j],))
             conn.commit() 
-            c.execute( "INSERT INTO transactions13 VALUES ('{}','{}','{}')".format(payer,points,timestamp_current))
+            c.execute( "INSERT INTO transactions_all VALUES ('{}','{}','{}')".format(payer,points,timestamp_current))
             conn.commit() # saves database
             j+=1
         conn.close()
@@ -157,9 +167,9 @@ def spend_points():
         
 @app.route("/show_balance", methods=["GET"])
 def show_balance(): # provides the sum of each payer's points
-    conn = sqlite3.connect('transactions10.db')
+    conn = sqlite3.connect('points.db')
     c = conn.cursor()    
-    c.execute("SELECT payer, points FROM transactions13")
+    c.execute("SELECT payer, points FROM transactions_all")
     payer_points = c.fetchall()
     payer = []
     points = []
