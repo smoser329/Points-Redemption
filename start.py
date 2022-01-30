@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Jan 24 20:34:36 2022
-
 @author: Samuel Moser
 """
 import sqlite3 # library for creating a db in memory hence 'lite'
 import flask # webserver library
 from flask import Flask, Response, json # more webserver things
 import datetime
+import requests
 
 app = flask.Flask(__name__)
 
@@ -15,6 +15,14 @@ def create_table():
     conn = sqlite3.connect('transactions10.db') # connects to database and stores it in a file
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS transactions10 (
+                payer text,
+                points integer,
+                timestamp text)""")
+    conn.commit()
+    conn.close()
+    conn = sqlite3.connect('transactions10.db') # connects to database and stores it in a file
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS transactions13 (
                 payer text,
                 points integer,
                 timestamp text)""")
@@ -28,6 +36,7 @@ def clear_db():
     conn = sqlite3.connect('transactions10.db')
     c = conn.cursor()
     c.execute("DELETE FROM transactions10")
+    c.execute("DELETE FROM transactions13")
     conn.commit()
     conn.close()
     return "Database Cleared"
@@ -54,9 +63,40 @@ def add_transaction():
         points = row["points"]
         timestamp = row["timestamp"]
         c.execute( "INSERT INTO transactions10 VALUES ('{}','{}','{}')".format(payer,points,timestamp))
+        c.execute( "INSERT INTO transactions13 VALUES ('{}','{}','{}')".format(payer,points,timestamp))
         conn.commit() # saves database
-    conn.close()
-    return "transactions added"
+    ##clean database
+    #This section takes negative points in transactions and subtracts them from positive point transactions
+    conn = sqlite3.connect('transactions10.db')
+    c = conn.cursor()
+    c.execute("SELECT payer, points,timestamp FROM transactions10 WHERE points<0")
+    neg_payer = c.fetchall()
+    for row in neg_payer:
+        points_spend= -row[1]
+        payer = row[0]
+        timestamp = row[2]
+        c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(0,timestamp,))
+
+    c.execute("SELECT payer, points, timestamp FROM transactions10 WHERE points>0 AND payer=? AND timestamp<? ORDER BY timestamp ASC",(payer,timestamp,))
+    try:
+        payer,points,timestamp = c.fetchone()
+        while points_spend>0:
+            if points<points_spend:
+                        points_spend = points_spend-points
+                        return "hi"
+                        c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(0,timestamp,))
+                        
+                        conn.commit()
+                        payer,points,timestamp = c.fetchone()
+            else:
+                    c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(points-points_spend,timestamp,))
+                    points_spend = 0
+                    conn.commit()
+        conn.close()
+    except:
+        return "transactions added. developer note: no negative transactions found"
+    ##clean database
+    return "transactions added developer note: negative transactions found and cleaned"
 
 @app.route("/spend_points", methods=["PUT"])
 def spend_points():
@@ -107,7 +147,7 @@ def spend_points():
             points_sum=points_original[j]+points
             c.execute("UPDATE transactions10 SET points =? WHERE timestamp=?",(points_sum,timestamp_original[j],))
             conn.commit() 
-            c.execute( "INSERT INTO transactions10 VALUES ('{}','{}','{}')".format(payer,points,timestamp_current))
+            c.execute( "INSERT INTO transactions13 VALUES ('{}','{}','{}')".format(payer,points,timestamp_current))
             conn.commit() # saves database
             j+=1
         conn.close()
@@ -119,7 +159,7 @@ def spend_points():
 def show_balance(): # provides the sum of each payer's points
     conn = sqlite3.connect('transactions10.db')
     c = conn.cursor()    
-    c.execute("SELECT payer, points FROM transactions10")
+    c.execute("SELECT payer, points FROM transactions13")
     payer_points = c.fetchall()
     payer = []
     points = []
