@@ -180,7 +180,7 @@ def show_balance(): # provides the sum of each payer's points
         balance[payer] += points
         if balance[payer] <0:
             balance[payer] = 0
-    return balance
+    return json.dumps(balance)
   
 if __name__ == "__main__":
     app.run(debug=True)    
