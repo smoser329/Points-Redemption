@@ -17,8 +17,6 @@ I use Postman to send my requests. Guide on Postman below.
     - Send a PUT request containing the amount of points to spend in a .json file to http://127.0.0.1:5000/spend_points
 - Showing Balance
     - Send a GET request to http://127.0.0.1:5000/show_balance
-- To view your database
-    - Send a GET request to http://127.0.0.1:5000/show_db
 - If you would like to clear your database and restart
     - Send a PUT request to http://127.0.0.1:5000/clear_db
 
