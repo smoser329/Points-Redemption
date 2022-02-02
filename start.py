@@ -170,8 +170,6 @@ def show_balance(): # provides the sum of each payer's points
     c = conn.cursor()    
     c.execute("SELECT payer, points FROM transactions_all")
     payer_points = c.fetchall()
-    payer = []
-    points = []
     balance = {}
     for i in range(len(payer_points)):
         payer,points = payer_points[i]
